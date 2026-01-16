@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Justus OJ - 首頁</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .problem-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .problem-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .card-img-top {
+            height: 150px;
+            object-fit: cover;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            font-size: 3rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">Justus OJ</a>
+            <div class="ms-auto">
+                <a href="/admin" class="btn btn-outline-light btn-sm">管理員登入</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-section text-center mt-5">
+        <div class="container">
+            <h1 class="display-4 fw-bold">Welcome to Justus Code Arena</h1>
+            <p class="lead mb-4">Challenge your logic, improve your C++ skills.</p>
+            <a href="#problem-list" class="btn btn-light btn-lg fw-bold text-primary px-5">Start Coding</a>
+        </div>
+    </section>
+
+    <div class="container mb-5" id="problem-list">
+        <div class="d-flex align-items-center mb-4">
+            <h3 class="fw-bold border-start border-4 border-primary ps-3">Problem Set</h3>
+            <span class="ms-auto text-muted">Total: {{ problems|length }} Problems</span>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for p in problems %}
+            <div class="col">
+                <div class="problem-card card">
+                    {% if p.image_filename %}
+                        <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" class="card-img-top" alt="Problem Image">
+                    {% else %}
+                        <div class="card-img-top fw-bold text-muted">
+                            P{{ p.id }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title fw-bold">
+                            <span class="badge bg-primary me-1">{{ p.id }}</span>
+                            {{ p.title }}
+                        </h5>
+                        <p class="card-text text-muted text-truncate">
+                            {{ p.description }}
+                        </p>
+                        <div class="mt-auto pt-3">
+                            <a href="/problem/{{ p.id }}" class="btn btn-outline-primary w-100 stretched-link">
+                                解題 (Solve)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center py-5">
+                <h4 class="text-muted">目前還沒有題目，請登入後台新增。</h4>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <footer class="text-center text-muted py-4 border-top mt-5 bg-white">
+        <small>&copy; 2026 Justus System. All rights reserved.</small>
+    </footer>
+
+</body>
+</html>

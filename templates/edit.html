@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>編輯題目</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light py-4">
+    <div class="container" style="max-width: 800px;">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">編輯題目 (ID: {{ problem.id }})</h4>
+                <a href="/admin" class="btn btn-sm btn-outline-dark">取消並返回</a>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">題目名稱</label>
+                        <input type="text" name="title" class="form-control" value="{{ problem.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">題目敘述</label>
+                        <textarea name="description" class="form-control" rows="5" required>{{ problem.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">更換圖片 (若不更換請留空)</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        {% if problem.image_filename %}
+                            <div class="form-text">目前已有圖片：{{ problem.image_filename }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5>範例展示 (Samples)</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSample()">+ 新增</button>
+                    </div>
+                    <div id="samples-container">
+                        {% for s in samples %}
+                        <div class="card bg-light mb-2 p-2 border">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <textarea name="sample_input[]" class="form-control form-control-sm" rows="2" placeholder="Input">{{ s.in }}</textarea>
+                                </div>
+                                <div class="col-6">
+                                    <textarea name="sample_output[]" class="form-control form-control-sm" rows="2" placeholder="Output">{{ s.out }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="text-danger">隱藏測試資料 (Test Cases)</h5>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="addTestCase()">+ 新增</button>
+                    </div>
+                    
+                    <div id="testcases-container">
+                        {% for t in test_cases %}
+                        <div class="card mb-2 p-2 border border-danger">
+                            <div class="mb-1">
+                                <textarea name="test_input[]" class="form-control form-control-sm" rows="2" placeholder="標準輸入" required>{{ t.in }}</textarea>
+                            </div>
+                            <div>
+                                <textarea name="test_output[]" class="form-control form-control-sm" rows="2" placeholder="標準輸出" required>{{ t.out }}</textarea>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-success btn-lg">儲存修改</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addSample() {
+            const container = document.getElementById('samples-container');
+            const html = `
+                <div class="card bg-light mb-2 p-2 border">
+                    <div class="row g-2">
+                        <div class="col-6"><textarea name="sample_input[]" class="form-control form-control-sm" rows="2" placeholder="Input"></textarea></div>
+                        <div class="col-6"><textarea name="sample_output[]" class="form-control form-control-sm" rows="2" placeholder="Output"></textarea></div>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function addTestCase() {
+            const container = document.getElementById('testcases-container');
+            const html = `
+                <div class="card mb-2 p-2 border border-danger">
+                    <div class="mb-1"><textarea name="test_input[]" class="form-control form-control-sm" rows="2" placeholder="標準輸入" required></textarea></div>
+                    <div><textarea name="test_output[]" class="form-control form-control-sm" rows="2" placeholder="標準輸出" required></textarea></div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+    </script>
+</body>
+</html>
