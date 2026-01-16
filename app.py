@@ -7,7 +7,7 @@ import time
 from flask import Flask, render_template, request, redirect, url_for, session, g
 
 app = Flask(__name__)
-app.secret_key = 'justus_secret_key'
+app.secret_key = '隨機生成的複雜字串'
 
 # --- 路徑設定 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,7 @@ TEMP_DIR = os.path.join(BASE_DIR, 'temp_code')
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-ADMIN_PASSWORD = 'Xiang520'
+ADMIN_PASSWORD = '您的新密碼'
 
 # 頻率限制 (秒)
 RATE_LIMIT_SECONDS = 15
