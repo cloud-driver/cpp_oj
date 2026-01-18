@@ -107,13 +107,13 @@ python3 app.py
 
 * **管理員密碼**：
 ```python
-ADMIN_PASSWORD = 'Xiang520'  # 請修改為您的密碼
+ADMIN_PASSWORD = 'your_password'  # 請修改為您的密碼
 ```
 
 
 * **Secret Key**：
 ```python
-app.secret_key = 'justus_secret_key' # 用於 Session 加密
+app.secret_key = 'your_secret_key' # 用於 Session 加密
 ```
 
 
