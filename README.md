@@ -1,121 +1,142 @@
 # Justus OJ (Justus Code Arena)
 
-這是一個基於 Python Flask 框架開發的輕量級 C++ Online Judge (線上解題系統)。提供題目瀏覽、程式碼提交、即時編譯與評測功能，並包含一個簡易的後台管理介面供管理員新增與編輯題目。
+這是一個基於 **Python Flask** 與 **Docker** 開發的 C++ Online Judge (線上解題系統)。
+本系統採用 **容器化沙箱技術** 來執行使用者提交的程式碼，確保伺服器安全，並具備現代化的 UI 設計與完整的後台管理功能。
 
 ## ✨ 特色功能 (Features)
 
-* **使用者端**
-* **題目列表與展示**：清楚的題目列表與詳細的題目敘述（支援圖片顯示）。
+### 🛡️ 安全與執行環境 (Core & Security)
+* **Docker 沙箱隔離**：所有程式碼皆在獨立、用完即丟的 Docker 容器中執行。
+    * **網路阻斷** (`network_disabled=True`)：防止惡意連線。
+    * **資源限制**：限制 CPU、記憶體 (128MB) 與 Process 數量，防止惡意消耗資源。
+* **安全性檢查**：除了沙箱外，保留基礎關鍵字過濾 (如 `system`, `rm -rf`) 作為第一道防線。
+* **Cloudflare 支援**：能正確解析 `CF-Connecting-IP`，在使用 Cloudflare Tunnel 時仍能辨識真實使用者 IP。
+
+### 💻 使用者端 (User Interface)
+* **現代化首頁 (Landing Page)**：具備 Hero Banner 與卡片式題目列表的質感首頁。
+* **題目瀏覽**：
+    * 支援 Markdown 風格的詳細題目敘述。
+    * 支援題目圖片顯示。
+    * 自動捲動至執行結果。
 * **程式碼提交**：支援直接貼上程式碼或上傳 `.cpp` / `.txt` 檔案。
-* **即時評測**：
-* 編譯錯誤 (CE)
-* 答案正確 (AC)
-* 答案錯誤 (WA)
-* 執行錯誤 (RE)
-* 執行逾時 (TLE - 設定為 2 秒)
-* 安全性檢查 (Dangerous - 阻擋 `system`, `rm -rf` 等危險指令)
+* **即時評測狀態**：
+    * `AC` (Accepted)
+    * `WA` (Wrong Answer)
+    * `CE` (Compilation Error)
+    * `RE` (Runtime Error)
+    * `TLE` (Time Limit Exceeded - 嚴格逾時強制中斷)
+* **頻率限制 (Rate Limiting)**：防止惡意刷題，針對真實 IP 進行冷卻時間限制 (預設 15 秒)。
+* **404 導向頁面**：當訪問不存在的題目時，顯示友善的倒數跳轉頁面。
 
-
-* **頻率限制**：防止惡意洗版，同一 IP 需等待 15 秒才能再次提交。
-* **範例測試**：題目頁面展示 Sample Input/Output 供使用者參考。
-
-
-* **管理員後台**
-* **題目管理**：新增、編輯、刪除題目。
-* **測資管理**：設定公開的「範例 (Samples)」與隱藏的「評測測資 (Test Cases)」。
-* **圖片上傳**：支援為題目上傳說明圖片。
-* **簡易驗證**：透過固定密碼登入後台。
-
-
+### ⚙️ 管理員後台 (Admin Panel)
+* **題目管理**：新增、編輯 (支援回填舊資料)、刪除題目。
+* **測資管理**：
+    * **範例 (Samples)**：顯示在前端供使用者參考。
+    * **隱藏測資 (Test Cases)**：系統批改用的標準輸入/輸出 (JSON 格式儲存)。
+* **Log 紀錄系統**：詳細記錄登入、提交、管理操作與錯誤訊息 (`oj_events.log`)。
 
 ## 🛠️ 技術堆疊 (Tech Stack)
 
-* **後端**：Python, Flask
+* **後端**：Python 3, Flask
+* **沙箱環境**：Docker Engine, Python Docker SDK
 * **資料庫**：SQLite (`cpp_oj.db`)
-* **前端**：HTML, Bootstrap 5 (RWD 響應式設計)
-* **編譯環境**：G++ (需運行於 Linux 環境或支援 G++ 路徑的系統)
+* **前端**：HTML5, Bootstrap 5 (RWD), JavaScript
+* **編譯器**：GCC (Docker image `gcc:latest`)
 
 ## 🚀 安裝與執行 (Installation & Setup)
 
-### 1. 環境需求
+本系統需運行於 **Linux** 環境 (如 Debian/Ubuntu)，並依賴 Docker 進行編譯。
 
-由於系統使用 `subprocess` 呼叫 `/usr/bin/g++` 進行編譯，建議於 **Linux** 環境下執行 (如 Ubuntu)。
-
-* Python 3.x
-* G++ Compiler (`sudo apt install g++`)
-
-### 2. 安裝依賴
-
-請確保已安裝 Flask：
+### 1. 安裝系統套件與 Docker
 
 ```bash
-pip install flask
+# 更新並安裝 Docker
+sudo apt update
+sudo apt install python3-pip docker.io -y
+
+# 啟動 Docker 並設定開機自啟
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 將當前使用者加入 docker 群組 (避免 sudo)
+sudo usermod -aG docker $USER
+# 注意：執行完上述指令後，請登出再登入，或重啟系統以生效。
 ```
 
-### 3. 專案結構
+### 2. 準備 Docker 編譯環境
+
+下載 GCC 官方映像檔供沙箱使用：
+
+```bash
+docker pull gcc:latest
+```
+
+### 3. 安裝 Python 依賴
+
+```bash
+pip3 install flask docker
+```
+
+### 4. 專案結構
 
 ```text
 /
-├── app.py              # 主程式邏輯
+├── app.py              # 主程式 (包含路由、Docker 邏輯、Log 系統)
 ├── cpp_oj.db           # 資料庫 (自動生成)
+├── oj_events.log       # 系統日誌 (自動生成)
 ├── static/
-│   └── uploads/        # 題目圖片存放區
-├── temp_code/          # 暫存編譯檔案 (自動生成)
-├── templates/          # HTML 模板 (home, admin, edit, login...)
+│   ├── uploads/        # 題目圖片存放區
+│   └── favicon.ico     # 網站圖示
+├── temp_code/          # 暫存原始碼與執行檔 (Docker 掛載點)
+├── templates/          # HTML 模板 (home, index, admin, edit, 404...)
 └── README.md
-
 ```
 
-### 4. 啟動伺服器
-
-執行以下指令啟動 Web Server：
+### 5. 啟動伺服器
 
 ```bash
-python app.py
+python3 app.py
 ```
 
-預設將運行於 `http://0.0.0.0:8080`。
+* 預設運行於 `http://0.0.0.0:8080`。
+* 初次執行會自動初始化資料庫與資料表。
 
 ## ⚙️ 設定 (Configuration)
 
 您可以在 `app.py` 中修改以下重要設定：
 
 * **管理員密碼**：
-**請務必修改**以下變數以確保安全：
 ```python
-ADMIN_PASSWORD = '您的新密碼'
+ADMIN_PASSWORD = 'Xiang520'  # 請修改為您的密碼
 ```
 
 
 * **Secret Key**：
-用於 Session 加密，建議修改：
 ```python
-app.secret_key = '隨機生成的複雜字串'
+app.secret_key = 'justus_secret_key' # 用於 Session 加密
 ```
 
 
 * **頻率限制**：
-調整 `RATE_LIMIT_SECONDS` 可改變提交冷卻時間 (預設 15 秒)。
-
-## 📝 使用說明
-
-1. **首頁**：進入 `http://localhost:8080/` 瀏覽題目。
-2. **後台管理**：
-* 點擊導覽列的「後台管理」或前往 `/admin`。
-* 輸入密碼登入。
-* 在後台可以填寫題目敘述、設定 Input/Output 測資。
+```python
+RATE_LIMIT_SECONDS = 15 # 提交冷卻時間
+```
 
 
-3. **解題**：
-* 選擇題目，閱讀說明。
-* 在文字框輸入 C++ 程式碼 (需包含 `main` 函式)。
-* 點擊「送出並執行」，系統會自動編譯並對照隱藏測資。
+* **Docker 映像檔**：
+```python
+DOCKER_IMAGE = 'gcc:latest'
+```
 
 
+## 📝 Log 查看方式
 
-## ⚠️ 安全注意事項
+系統會將重要事件記錄於 `oj_events.log`，格式為 `<IP> : <時間> : <事件>`。
 
-本系統包含基本的關鍵字過濾 (`is_safe_code`) 以防止簡單的惡意攻擊 (如 `system(`)，但**不建議**直接部署於公開且高風險的伺服器上，因為未實作完整的沙箱 (Sandbox) 隔離機制。僅適合教學或內部練習使用。
+## ⚠️ 部署注意事項
+
+* **Cloudflare Tunnel**：本系統已針對 Cloudflare 優化 (讀取 `CF-Connecting-IP`)，建議透過 Tunnel 暴露至公網以獲得 HTTPS 保護。
+* **安全性**：雖然已實作 Docker 隔離，但建議不要給予 Docker 容器 `privileged` 權限 (本程式預設已禁用網路與限制權限)。
 
 ## 📄 License
 
