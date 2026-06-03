@@ -19,6 +19,7 @@
                 <div class="card p-3 shadow-sm mb-4">
                     <h4>新增題目</h4>
                     <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label class="form-label">題目名稱</label>
                             <input type="text" name="title" class="form-control" required>
@@ -76,6 +77,30 @@
             </div>
 
             <div class="col-md-7">
+                
+                <div class="card p-3 shadow-sm mb-4 border-info">
+                    <h5 class="text-info">📦 資料庫備份與還原</h5>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-4">
+                            <a href="/admin/export" class="btn btn-outline-primary w-100">
+                                ⬇️ 下載備份 (JSON)
+                            </a>
+                        </div>
+                        <div class="col-md-8">
+                            <form action="/admin/import" method="post" enctype="multipart/form-data" class="d-flex gap-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="file" name="backup_file" class="form-control" accept=".json" required>
+                                <button type="submit" class="btn btn-outline-danger text-nowrap" onclick="return confirm('確定要匯入嗎？這將會新增題目到現有列表中。')">
+                                    ⬆️ 上傳還原
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">
+                        注意：此功能僅備份文字資料（題目、測資）。若題目包含圖片，請手動備份伺服器上的 <code>static/uploads/</code> 資料夾。
+                    </div>
+                </div>
+
                 <div class="card p-3 shadow-sm">
                     <h4>題目列表</h4>
                     <table class="table table-striped align-middle">

@@ -5,25 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Justus OJ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: { ignoreHtmlClass: 'tex2jax_ignore', processHtmlClass: 'tex2jax_process' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
     <style>
         body { background-color: #f8f9fa; padding-top: 0; padding-bottom: 50px; }
         .container { max-width: 900px; }
-        textarea { font-family: monospace; }
         pre.result-box { background-color: #212529; color: #fff; padding: 10px; border-radius: 5px; margin-bottom: 0;}
-        .sample-box { 
-            background-color: #e9ecef; 
-            color: #000000; 
-            padding: 10px; 
-            border-radius: 5px; 
-            margin-bottom: 10px;
-            font-family: monospace;
-            white-space: pre-wrap;
-        }
+        .sample-box { background-color: #e9ecef; color: #000000; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap; }
         .sample-label { font-weight: bold; color: #495057; font-size: 0.9em; margin-bottom: 5px;}
+
+        .CodeMirror {
+            height: 400px;
+            font-size: 16px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        /* 綠色勾勾 */
+        .solved-mark { position: absolute; top: 10px; right: 10px; background: white; border-radius: 50%; padding: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     </style>
 </head>
-<body class="bg-light"> <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
             <a class="navbar-brand" href="/">Justus OJ</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -34,11 +52,36 @@
                     <li class="nav-item">
                         <a class="nav-link active" href="/">題目列表</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/editor">C++ 編輯器</a>
+                    </li>
                 </ul>
-                <a href="/admin" class="btn btn-outline-light btn-sm">後台管理</a>
+                {% if session.get('user_id') %}
+                    <span class="text-light me-3">Hi, {{ session.username }}</span>
+                    {% if session.role == 'admin' %}
+                        <a href="/admin" class="btn btn-outline-warning btn-sm me-2">後台管理</a>
+                    {% endif %}
+                    <a href="/logout" class="btn btn-outline-light btn-sm">登出</a>
+                {% else %}
+                    <a href="/login" class="btn btn-primary btn-sm me-2">登入</a>
+                    <a href="/register" class="btn btn-outline-light btn-sm">註冊</a>
+                {% endif %}
             </div>
         </div>
     </nav>
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+    </div>
     
     <div class="container">
         <div class="card p-3 mb-4 shadow-sm">
@@ -58,14 +101,14 @@
         <div class="card p-4 mb-4 shadow-sm">
             <h4>題目敘述</h4>
             <hr>
-            <p style="white-space: pre-wrap; font-size: 1.1rem;">{{ current_problem.description }}</p>
-
+            <div class="tex2jax_process">
+                <p style="white-space: pre-wrap; font-size: 1.1rem;">{{ current_problem.description }}</p>
+            </div>
             {% if current_problem.image_filename %}
             <div class="mb-3 text-center">
                 <img src="{{ url_for('static', filename='uploads/' + current_problem.image_filename) }}" class="img-fluid rounded border" style="max-height: 400px;">
             </div>
             {% endif %}
-
             {% if problem_samples %}
                 {% for s in problem_samples %}
                 <div class="mt-3">
@@ -86,21 +129,62 @@
         </div>
 
         <div class="card p-4 shadow-sm border-primary">
-            <h5 class="card-title mb-3">程式碼提交</h5>
-            <form action="" method="post" enctype="multipart/form-data">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">程式碼提交</h5>
+                
+                {% if session.get('user_id') %}
+                    <button type="button" class="btn btn-warning fw-bold text-dark" onclick="getAiHint()">
+                        🤖 AI 解題思路
+                    </button>
+                {% else %}
+                    <a href="/login" class="btn btn-secondary" title="請先登入以使用 AI">
+                        🤖 AI 解題思路 (需登入)
+                    </a>
+                {% endif %}
+            </div>
+
+            <div id="ai-hint-box" class="alert alert-info d-none tex2jax_process">
+                <h5 class="alert-heading">💡 AI 提示：</h5>
+                <hr>
+                <div id="ai-hint-content"></div>
+            </div>
+
+            <form id="code-form" action="" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="problem_id" value="{{ current_problem.id }}">
                 <input type="hidden" name="submit_code" value="true">
-                
+
                 <div class="mb-3">
-                    <textarea class="form-control" name="code" rows="15" placeholder="#include <iostream>...">{{ code }}</textarea>
+                    <textarea id="code-editor" name="code">{% if code %}{{ code }}{% else %}#include <iostream>
+
+using namespace std;
+
+int main() {
+    
+    return 0;
+}{% endif %}</textarea>
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label text-muted small">或是上傳 .cpp 檔案：</label>
                     <input class="form-control" type="file" name="file" accept=".cpp,.txt">
                 </div>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-primary btn-lg">送出並執行</button>
+
+                <div class="d-flex gap-2">
+                    <button id="test-sample-btn" type="button" class="btn btn-outline-success flex-grow-1 fw-bold" onclick="runSamples()">
+                        ⚡ 測試範例 (Run Samples)
+                    </button>
+                    
+                    <button id="submit-btn" type="submit" class="btn btn-primary flex-grow-1 fw-bold">
+                        送出評測 (Submit)
+                    </button>
                 </div>
+            </form>
+
+            <div id="sample-result-box" class="mt-4 d-none">
+                <h5 class="mb-3">🧪 範例測試結果：</h5>
+                <div id="sample-result-content"></div>
+            </div>
             </form>
 
             {% if output or status %}
@@ -126,15 +210,227 @@
         {% endif %}
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+
     <script>
+        // C++ 關鍵字列表 (可以在這裡擴充)
+        const cppKeywords = [
+            "#include", "#define", "iostream", "vector", "string", "map", "set", "algorithm", "cmath", "cstdio",
+            "using", "namespace", "std", "int", "long", "long long", "float", "double", "char", "bool", "void",
+            "return", "main", "if", "else", "for", "while", "do", "break", "continue", "switch", "case", "default",
+            "class", "struct", "public", "private", "protected", "const", "static", "new", "delete",
+            "cin", "cout", "endl", "printf", "scanf", "sort", "push_back", "size", "length", "begin", "end"
+        ];
+
+        // 註冊自定義的 C++ Hint Helper
+        CodeMirror.registerHelper("hint", "clike", function(editor, options) {
+            var cur = editor.getCursor();
+            var token = editor.getTokenAt(cur);
+            var start = token.start;
+            var end = cur.ch;
+            var word = token.string.slice(0, end - start);
+            
+            // 如果輸入 #，我們需要特殊處理
+            if (word === "" && token.string === "#") {
+                word = "#";
+                start = token.start;
+            } else if (token.type === null && token.string.trim() === "") {
+                // 處理開頭空字串的情況
+                return null;
+            }
+
+            var list = cppKeywords.filter(function(item) {
+                return item.startsWith(word);
+            });
+
+            return {
+                list: list,
+                from: CodeMirror.Pos(cur.line, start),
+                to: CodeMirror.Pos(cur.line, end)
+            };
+        });
+
         window.onload = function() {
-            // 檢查結果區塊是否存在
+            var textArea = document.getElementById("code-editor");
+            if (textArea) {
+                var editor = CodeMirror.fromTextArea(textArea, {
+                    mode: "text/x-c++src",
+                    theme: "dracula",
+                    lineNumbers: true,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    indentUnit: 4,
+                    indentWithTabs: true,
+                    extraKeys: {"Ctrl-Space": "autocomplete"} // Ctrl+Space 也可以觸發
+                });
+                
+                // [新增] 監聽打字事件，自動跳出提示
+                editor.on("keyup", function(cm, event) {
+                    // 排除這些按鍵 (方向鍵、Enter、Esc 等)，避免干擾操作
+                    if (!cm.state.completionActive && 
+                        ![(13), (27), (37), (38), (39), (40), (9), (16), (17), (18), (91)].includes(event.keyCode)) {
+                        
+                        // 取得當前游標下的字
+                        var cur = cm.getCursor();
+                        var token = cm.getTokenAt(cur);
+                        
+                        // 只有當輸入長度 > 0 或輸入了 '#' 時才觸發
+                        if (token.string.length > 0 || event.key === '#') {
+                             CodeMirror.commands.autocomplete(cm, null, {completeSingle: false});
+                        }
+                    }
+                });
+
+                setTimeout(function() { editor.refresh(); }, 100);
+            }
+
+            // 自動捲動邏輯
             var resultSection = document.getElementById("result-section");
             if (resultSection) {
-                // 平滑捲動到該區塊
-                resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(function() {
+                    window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }, 300);
             }
         };
+
+        // 表單送出動畫
+        const codeForm = document.getElementById('code-form');
+        if (codeForm) {
+            codeForm.addEventListener('submit', function() {
+                const btn = document.getElementById('submit-btn');
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 系統編譯與評測中... (硬體運算中，請稍候)`;
+            });
+        }
+
+        // AI 功能
+        async function getAiHint() {
+            const btn = document.querySelector('button[onclick="getAiHint()"]');
+            const hintBox = document.getElementById('ai-hint-box');
+            const content = document.getElementById('ai-hint-content');
+            const editor = document.querySelector('.CodeMirror').CodeMirror;
+            const currentCode = editor.getValue();
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 思考中...';
+            hintBox.classList.add('d-none');
+
+            try {
+                const response = await fetch('/get_hint/{{ current_problem.id }}', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({ code: currentCode })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    content.innerHTML = `<span class="text-danger">錯誤：${data.error}</span>`;
+                } else {
+                    content.innerHTML = marked.parse(data.hint);
+                    if (window.MathJax) {
+                        MathJax.typesetPromise([content]).then(() => {}).catch((err) => console.log('MathJax 錯誤:', err));
+                    }
+                }
+                hintBox.classList.remove('d-none');
+            } catch (error) {
+                alert("連線失敗，請稍後再試。");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🤖 AI 解題思路';
+            }
+        }
+        async function runSamples() {
+            const btn = document.getElementById('test-sample-btn');
+            const resultBox = document.getElementById('sample-result-box');
+            const content = document.getElementById('sample-result-content');
+            
+            // 取得程式碼
+            const editor = document.querySelector('.CodeMirror').CodeMirror;
+            const currentCode = editor.getValue();
+
+            // UI 狀態切換
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 測試中...';
+            resultBox.classList.add('d-none');
+            content.innerHTML = '';
+
+            try {
+                const response = await fetch('/run_samples/{{ current_problem.id }}', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({ code: currentCode })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else if (data.status === 'CE') {
+                    content.innerHTML = `<div class="alert alert-warning"><strong>⚠️ 編譯錯誤：</strong><pre>${data.message}</pre></div>`;
+                } else {
+                    // 生成漂亮的結果表格
+                    let html = '';
+                    data.results.forEach(res => {
+                        const statusBadge = res.pass 
+                            ? '<span class="badge bg-success">通過 (Pass)</span>' 
+                            : '<span class="badge bg-danger">失敗 (Fail)</span>';
+                        
+                        const errorClass = res.pass ? '' : 'border-danger';
+                        const textClass = res.pass ? 'text-success' : 'text-danger';
+
+                        html += `
+                        <div class="card mb-3 ${errorClass}">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Sample #${res.id}</span>
+                                ${statusBadge}
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <small class="text-muted">輸入 (Input)</small>
+                                        <pre class="bg-light p-2 border rounded">${res.input}</pre>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">預期輸出 (Expected)</small>
+                                        <pre class="bg-light p-2 border rounded">${res.expected}</pre>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">您的輸出 (Actual)</small>
+                                        <pre class="${res.pass ? 'bg-light' : 'bg-danger-subtle'} p-2 border rounded ${textClass}">${res.actual}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    content.innerHTML = html;
+                }
+                resultBox.classList.remove('d-none');
+                
+                // 自動捲動到結果
+                setTimeout(() => {
+                    resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+
+            } catch (error) {
+                alert("連線失敗：" + error);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '⚡ 測試範例 (Run Samples)';
+            }
+        }
     </script>
 </body>
 </html>

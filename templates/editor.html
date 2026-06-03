@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ 編輯器 - Justus OJ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+    <style>
+        body { background-color: #f8f9fa; padding-bottom: 50px; }
+        .container { max-width: 1100px; }
+        .CodeMirror {
+            height: 520px;
+            font-size: 16px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        .io-box {
+            min-height: 180px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+        }
+        .status-pill { min-width: 90px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">Justus OJ</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">題目列表</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/editor">C++ 編輯器</a></li>
+                </ul>
+                {% if session.get('user_id') %}
+                    <span class="text-light me-3">Hi, {{ session.username }}</span>
+                    {% if session.role == 'admin' %}
+                        <a href="/admin" class="btn btn-outline-warning btn-sm me-2">後台管理</a>
+                    {% endif %}
+                    <a href="/logout" class="btn btn-outline-light btn-sm">登出</a>
+                {% else %}
+                    <a href="/login" class="btn btn-primary btn-sm me-2">登入</a>
+                    <a href="/register" class="btn btn-outline-light btn-sm">註冊</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+            <div>
+                <h2 class="fw-bold mb-1">C++ 單純編輯器</h2>
+                <p class="text-muted mb-0">不綁題目、不送出評測，只用來寫程式、測輸入輸出、下載 .cpp 檔。</p>
+            </div>
+            <a href="/" class="btn btn-outline-secondary">回題目列表</a>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">程式碼</span>
+                <div class="d-flex gap-2">
+                    <input id="filename-input" class="form-control form-control-sm" style="max-width: 180px;" value="main.cpp" aria-label="檔名">
+                    <button type="button" class="btn btn-light btn-sm fw-bold" onclick="downloadCpp()">下載 .cpp</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea id="code-editor">#include <iostream>
+using namespace std;
+
+int main() {
+    
+    return 0;
+}</textarea>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header fw-bold">輸入 stdin</div>
+                    <div class="card-body">
+                        <textarea id="stdin-box" class="form-control io-box" placeholder="在這裡輸入測試資料，例如：&#10;3 5"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">輸出 stdout / 錯誤訊息</span>
+                        <span id="status-badge" class="badge bg-secondary status-pill">尚未執行</span>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="stdout-box" class="form-control io-box" readonly placeholder="執行結果會顯示在這裡"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid d-md-flex gap-2 mt-4">
+            <button id="run-btn" type="button" class="btn btn-success btn-lg flex-fill fw-bold" onclick="runCustomCode()">▶ 執行程式</button>
+            <button type="button" class="btn btn-outline-secondary btn-lg" onclick="clearOutput()">清空輸出</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const cppKeywords = [
+            "#include", "#define", "iostream", "vector", "string", "map", "set", "algorithm", "cmath", "cstdio",
+            "using", "namespace", "std", "int", "long", "long long", "float", "double", "char", "bool", "void",
+            "return", "main", "if", "else", "for", "while", "do", "break", "continue", "switch", "case", "default",
+            "class", "struct", "public", "private", "protected", "const", "static", "new", "delete",
+            "cin", "cout", "endl", "printf", "scanf", "sort", "push_back", "size", "length", "begin", "end"
+        ];
+
+        CodeMirror.registerHelper("hint", "clike", function(editor) {
+            const cur = editor.getCursor();
+            const token = editor.getTokenAt(cur);
+            let start = token.start;
+            const end = cur.ch;
+            let word = token.string.slice(0, end - start);
+
+            if (word === "" && token.string === "#") {
+                word = "#";
+                start = token.start;
+            } else if (token.type === null && token.string.trim() === "") {
+                return null;
+            }
+
+            return {
+                list: cppKeywords.filter(item => item.startsWith(word)),
+                from: CodeMirror.Pos(cur.line, start),
+                to: CodeMirror.Pos(cur.line, end)
+            };
+        });
+
+        const editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+            mode: "text/x-c++src",
+            theme: "dracula",
+            lineNumbers: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            indentUnit: 4,
+            indentWithTabs: true,
+            extraKeys: {"Ctrl-Space": "autocomplete"}
+        });
+
+        editor.on("keyup", function(cm, event) {
+            const excludedKeys = [13, 27, 37, 38, 39, 40, 9, 16, 17, 18, 91];
+            if (!cm.state.completionActive && !excludedKeys.includes(event.keyCode)) {
+                const token = cm.getTokenAt(cm.getCursor());
+                if (token.string.length > 0 || event.key === '#') {
+                    CodeMirror.commands.autocomplete(cm, null, { completeSingle: false });
+                }
+            }
+        });
+
+        setTimeout(() => editor.refresh(), 100);
+
+        function setStatus(status) {
+            const badge = document.getElementById('status-badge');
+            badge.textContent = status;
+            badge.className = 'badge status-pill ' + (
+                status === 'OK' ? 'bg-success' :
+                status === 'CE' ? 'bg-warning text-dark' :
+                status === 'RE' || status === 'TLE' ? 'bg-danger' :
+                'bg-secondary'
+            );
+        }
+
+        async function runCustomCode() {
+            const btn = document.getElementById('run-btn');
+            const output = document.getElementById('stdout-box');
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 執行中...';
+            output.value = '';
+            setStatus('執行中');
+
+            try {
+                const response = await fetch('/run_custom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        code: editor.getValue(),
+                        input: document.getElementById('stdin-box').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    setStatus('ERROR');
+                    output.value = data.error;
+                } else {
+                    setStatus(data.status || 'OK');
+                    output.value = data.output || '';
+                }
+            } catch (err) {
+                setStatus('ERROR');
+                output.value = '連線失敗：' + err;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '▶ 執行程式';
+            }
+        }
+
+        function downloadCpp() {
+            let filename = document.getElementById('filename-input').value.trim() || 'main.cpp';
+            if (!filename.toLowerCase().endsWith('.cpp')) filename += '.cpp';
+
+            const blob = new Blob([editor.getValue()], { type: 'text/x-c++src;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearOutput() {
+            document.getElementById('stdout-box').value = '';
+            setStatus('尚未執行');
+        }
+    </script>
+</body>
+</html>

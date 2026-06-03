@@ -5,72 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Justus OJ - 首頁</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <style>
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 80px 0;
-            margin-bottom: 40px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .problem-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-            height: 100%;
-            border: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .problem-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-        .card-img-top {
-            height: 150px;
-            object-fit: cover;
-            background-color: #f8f9fa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ccc;
-            font-size: 3rem;
+        /* Hero & Card Styles (保留之前的樣式) */
+        .hero-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 60px 0; margin-bottom: 30px; }
+        .problem-card { transition: transform 0.2s; height: 100%; }
+        .problem-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .card-img-top { height: 150px; object-fit: cover; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 3rem; }
+        
+        /* 綠色勾勾樣式 */
+        .solved-mark { position: absolute; top: 10px; right: 10px; background: white; border-radius: 50%; padding: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        
+        .footer-link { transition: color 0.2s; }
+        .footer-link:hover { color: #ffffff !important; }
+
+        #footer .text-muted {
+            --bs-text-opacity: 1;
+            color: #ffffff !important;
         }
     </style>
 </head>
-<body class="bg-light">
-
+<body class="bg-light d-flex flex-column min-vh-100">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container">
             <a class="navbar-brand fw-bold" href="/">Justus OJ</a>
             <div class="ms-auto">
-                <a href="/admin" class="btn btn-outline-light btn-sm">管理員登入</a>
+                <a href="/editor" class="btn btn-outline-info btn-sm me-2">C++ 編輯器</a>
+                {% if session.get('user_id') %}
+                    <span class="text-light me-3">Hi, {{ session.username }}</span>
+                    {% if session.role == 'admin' %}
+                        <a href="/admin" class="btn btn-outline-warning btn-sm me-2">後台管理</a>
+                    {% endif %}
+                    <a href="/logout" class="btn btn-outline-light btn-sm">登出</a>
+                {% else %}
+                    <a href="/login" class="btn btn-primary btn-sm me-2">登入</a>
+                    <a href="/register" class="btn btn-outline-light btn-sm">註冊</a>
+                {% endif %}
             </div>
         </div>
     </nav>
 
     <section class="hero-section text-center mt-5">
         <div class="container">
-            <h1 class="display-4 fw-bold">Welcome to Justus Code Arena</h1>
-            <p class="lead mb-4">Challenge your logic, improve your C++ skills.</p>
-            <a href="#problem-list" class="btn btn-light btn-lg fw-bold text-primary px-5">Start Coding</a>
+            <h1 class="display-4 fw-bold">Justus Code Arena</h1>
+            {% if user_stats %}
+                <div class="row justify-content-center mt-4">
+                    <div class="col-md-8">
+                        <div class="card text-dark shadow-sm">
+                            <div class="card-body py-2 d-flex justify-content-around align-items-center">
+                                <div><small class="text-muted">已解決</small><div class="h4 fw-bold text-success">{{ user_stats.solved_count }}</div></div>
+                                <div><small class="text-muted">正確率</small><div class="h4 fw-bold">{{ user_stats.accuracy }}%</div></div>
+                                <div><small class="text-muted">排名</small><div class="h4 fw-bold text-primary">#{{ user_stats.rank }}</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="lead mt-3">Challenge your logic, improve your C++ skills.</p>
+                <a href="/login" class="btn btn-light fw-bold text-primary mt-2">立即登入開始挑戰</a>
+            {% endif %}
         </div>
     </section>
 
-    <div class="container mb-5" id="problem-list">
-        <div class="d-flex align-items-center mb-4">
-            <h3 class="fw-bold border-start border-4 border-primary ps-3">Problem Set</h3>
-            <span class="ms-auto text-muted">Total: {{ problems|length }} Problems</span>
-        </div>
-
+    <div class="container mb-5">
+        <h3 class="fw-bold border-start border-4 border-primary ps-3 mb-4">Problem Set</h3>
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for p in problems %}
             <div class="col">
-                <div class="problem-card card">
+                <div class="problem-card card h-100 position-relative">
+                    
+                    {% if p.id in solved_ids %}
+                        <div class="solved-mark text-success">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-check-circle-fill" viewBox="0 0 16 16">
+                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                            </svg>
+                        </div>
+                    {% endif %}
+
                     {% if p.image_filename %}
                         <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" class="card-img-top" alt="Problem Image">
                     {% else %}
-                        <div class="card-img-top fw-bold text-muted">
-                            P{{ p.id }}
-                        </div>
+                        <div class="card-img-top fw-bold text-muted">P{{ p.id }}</div>
                     {% endif %}
                     
                     <div class="card-body d-flex flex-column">
@@ -78,28 +93,60 @@
                             <span class="badge bg-primary me-1">{{ p.id }}</span>
                             {{ p.title }}
                         </h5>
-                        <p class="card-text text-muted text-truncate">
-                            {{ p.description }}
-                        </p>
-                        <div class="mt-auto pt-3">
-                            <a href="/problem/{{ p.id }}" class="btn btn-outline-primary w-100 stretched-link">
-                                解題 (Solve)
-                            </a>
-                        </div>
+                        <p class="card-text text-muted text-truncate">{{ p.description }}</p>
+                        <a href="/problem/{{ p.id }}" class="btn btn-outline-primary w-100 mt-auto stretched-link">解題</a>
                     </div>
                 </div>
-            </div>
-            {% else %}
-            <div class="col-12 text-center py-5">
-                <h4 class="text-muted">目前還沒有題目，請登入後台新增。</h4>
             </div>
             {% endfor %}
         </div>
     </div>
+    <footer id="footer" class="bg-dark text-light py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h5 class="text-uppercase fw-bold text-primary">Justus OJ</h5>
+                    <p class="small text-muted" style="color: #ffffff;">
+                        一個輕量級、基於 Docker 沙箱技術的 C++ 線上解題系統。
+                        <br>專注於邏輯訓練與演算法學習。
+                    </p>
+                    <p class="small text-muted mb-0">
+                        &copy; 2026 Justus. All Rights Reserved.
+                    </p>
+                </div>
 
-    <footer class="text-center text-muted py-4 border-top mt-5 bg-white">
-        <small>&copy; 2026 Justus System. All rights reserved.</small>
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h5 class="text-uppercase fw-bold mb-3">快速連結</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/" class="text-decoration-none text-secondary footer-link">回到首頁 (Home)</a></li>
+                        <li><a href="/editor" class="text-decoration-none text-secondary footer-link">C++ 編輯器 (Editor)</a></li>
+                        
+                        {% if session.get('user_id') %}
+                            <li><a href="/logout" class="text-decoration-none text-secondary footer-link">登出 (Logout)</a></li>
+                            {% if session.get('role') == 'admin' %}
+                                <li><a href="/admin" class="text-decoration-none text-warning footer-link">後台管理 (Admin)</a></li>
+                            {% endif %}
+                        {% else %}
+                            <li><a href="/login" class="text-decoration-none text-secondary footer-link">登入 (Login)</a></li>
+                            <li><a href="/register" class="text-decoration-none text-secondary footer-link">註冊 (Register)</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="col-md-4 ">
+                    <h5 class="text-uppercase fw-bold mb-3">技術支援</h5>
+                    <p class="small text-muted mb-2">
+                        Powered by <strong>Flask</strong> & <strong>Docker</strong>
+                    </p>
+                    <p class="small text-muted mb-2">
+                        AI Model: <strong>{{ config.get('AI_MODEL', 'Gemini-3') }}</strong>
+                    </p>
+                    <p class="small text-muted">
+                        聯絡管理員: <a href="mailto:hasaki@hasaki.idv.tw" class="text-decoration-none text-light">hasaki@hasaki.idv.tw</a>
+                    </p>
+                </div>
+            </div>
+        </div>
     </footer>
-
 </body>
 </html>
